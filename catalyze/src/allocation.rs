@@ -6,11 +6,20 @@ use std::ptr::{slice_from_raw_parts, slice_from_raw_parts_mut};
 use std::slice;
 use std::sync::Arc;
 
-#[derive(Clone)]
 pub struct Lengths<T> {
     lengths: Vec<(usize, usize)>,
     layout: Layout,
     _ghost: PhantomData<fn() -> T>,
+}
+
+impl<T> Clone for Lengths<T> {
+    fn clone(&self) -> Self {
+        Lengths {
+            lengths: self.lengths.clone(),
+            layout: self.layout,
+            _ghost: PhantomData,
+        }
+    }
 }
 
 impl Default for Lengths<()> {
