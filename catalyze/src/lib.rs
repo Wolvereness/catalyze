@@ -41,6 +41,7 @@ pub mod method;
 pub mod oneof;
 pub mod package;
 pub mod service;
+mod allocation;
 
 pub(crate) type HashMap<K, V> = ahash::HashMap<K, V>;
 pub(crate) type HashSet<V> = ahash::HashSet<V>;
