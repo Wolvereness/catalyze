@@ -7,6 +7,62 @@ use snafu::Snafu;
 use yoke::erased::ErasedArcCart;
 use yoke::{Yoke, Yokeable};
 
+macro_rules! populate {
+    ($hydrator:ident, Package: (*$ptr:ident = $this:ident).$field:tt) => {
+        (addr_of_mut!((&mut *$ptr).$field) as *mut *const MaybeUninit<Package>)
+            .write($hydrator.placeholder_package($this.$field)?);
+    };
+    ($hydrator:ident, File: (*$ptr:ident = $this:ident).$field:tt) => {
+        (addr_of_mut!((&mut *$ptr).$field) as *mut *const MaybeUninit<File>)
+            .write($hydrator.placeholder_file($this.$field)?);
+    };
+    ($hydrator:ident, Message: (*$ptr:ident = $this:ident).$field:tt) => {
+        (addr_of_mut!((&mut *$ptr).$field) as *mut *const MaybeUninit<Message>)
+            .write($hydrator.placeholder_message($this.$field)?);
+    };
+    ($hydrator:ident, Enum: (*$ptr:ident = $this:ident).$field:tt) => {
+        (addr_of_mut!((&mut *$ptr).$field) as *mut *const MaybeUninit<Enum>)
+            .write($hydrator.placeholder_enum($this.$field)?);
+    };
+    ($hydrator:ident, EnumValue: (*$ptr:ident = $this:ident).$field:tt) => {
+        (addr_of_mut!((&mut *$ptr).$field) as *mut *const MaybeUninit<EnumValue>)
+            .write($hydrator.placeholder_enum_value($this.$field)?);
+    };
+    ($hydrator:ident, Service: (*$ptr:ident = $this:ident).$field:tt) => {
+        (addr_of_mut!((&mut *$ptr).$field) as *mut *const MaybeUninit<Service>)
+            .write($hydrator.placeholder_service($this.$field)?);
+    };
+    ($hydrator:ident, Method: (*$ptr:ident = $this:ident).$field:tt) => {
+        (addr_of_mut!((&mut *$ptr).$field) as *mut *const MaybeUninit<Method>)
+            .write($hydrator.placeholder_method($this.$field)?);
+    };
+    ($hydrator:ident, Field: (*$ptr:ident = $this:ident).$field:tt) => {
+        (addr_of_mut!((&mut *$ptr).$field) as *mut *const MaybeUninit<Field>)
+            .write($hydrator.placeholder_field($this.$field)?);
+    };
+    ($hydrator:ident, Oneof: (*$ptr:ident = $this:ident).$field:tt) => {
+        (addr_of_mut!((&mut *$ptr).$field) as *mut *const MaybeUninit<Oneof>)
+            .write($hydrator.placeholder_oneof($this.$field)?);
+    };
+    ($hydrator:ident, Extension: (*$ptr:ident = $this:ident).$field:tt) => {
+        (addr_of_mut!((&mut *$ptr).$field) as *mut *const MaybeUninit<Extension>)
+            .write($hydrator.placeholder_extension($this.$field)?);
+    };
+    ($hydrator:ident, str: (*$ptr:ident = $this:ident).$field:tt) => {
+        (addr_of_mut!((&mut *$ptr).$field) as *mut *const str)
+            .write($hydrator.bump.alloc_str($this.$field));
+    };
+    ($hydrator:ident, (*$ptr:ident = $this:ident)[$(
+        $field:tt: $type_name:tt,
+    )*]) => {
+        use std::mem::MaybeUninit;
+        use std::ptr::addr_of_mut;
+        $(
+            populate!($hydrator, $type_name: (*$ptr = $this).$field);
+        )*
+    }
+}
+
 mod helpers {
     mod abstraction;
     pub use abstraction::*;
@@ -49,7 +105,7 @@ pub enum Node<'a, T: Abstraction<'a>> {
     Enum(T::Inner<Enum>),
     EnumValue(T::Inner<EnumValue>),
     Service(T::Inner<Service>),
-    Method(T::Inner<Method>),
+    Method(T::Inner<Method<'a>>),
     Field(T::Inner<Field>),
     Oneof(T::Inner<Oneof>),
     Extension(T::Inner<Extension>),
@@ -62,7 +118,7 @@ pub struct Ast<'a> {
     enums: &'a [&'a Enum],
     enum_values: &'a [&'a EnumValue],
     services: &'a [&'a Service],
-    methods: &'a [&'a Method],
+    methods: &'a [&'a Method<'a>],
     fields: &'a [&'a Field],
     oneofs: &'a [&'a Oneof],
     extensions: &'a [&'a Extension],
