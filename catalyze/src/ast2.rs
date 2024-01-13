@@ -102,42 +102,42 @@ pub enum Error {
     Incomplete,
 }
 
-macro_rules! nodefn {
-    ($([$f1:ident, $f2:ident, $var:ident]($d:tt => $t:tt),)*) => {
+macro_rules! hydration_helper {
+    ($([$add_fn:ident, $placeholder_fn:ident, $field:ident]($type_data:tt => $type_name:tt),)*) => {
         impl AstHydration {
             $(
-                pub fn $f1(&mut self, name: &str, value: &$d) -> Result<(), Error> {
+                pub fn $add_fn(&mut self, name: &str, value: &$type_data) -> Result<(), Error> {
                     let ptr = match self.nodes.get_mut::<str>(name) {
                         None => {
-                            let ptr: *mut MaybeUninit<$t> = self.bump.alloc(MaybeUninit::uninit());
+                            let ptr: *mut MaybeUninit<$type_name> = self.bump.alloc(MaybeUninit::uninit());
                             let name = self.bump.alloc_str(name);
-                            self.nodes.insert(HydratingName(name), Node::$t(Either::Right(ptr as *mut $t)));
+                            self.nodes.insert(HydratingName(name), Node::$type_name(Either::Right(ptr as *mut $type_name)));
                             ptr
                         },
-                        Some(Node::$t(Either::Right(_))) =>
+                        Some(Node::$type_name(Either::Right(_))) =>
                             return Err(Error::Present),
-                        Some(value @ Node::$t(_)) => {
-                            let &mut Node::$t(Either::Left(ptr)) = value
+                        Some(value @ Node::$type_name(_)) => {
+                            let &mut Node::$type_name(Either::Left(ptr)) = value
                                 else { unreachable!() };
-                            *value = Node::$t(Either::Right(ptr as *mut $t));
+                            *value = Node::$type_name(Either::Right(ptr as *mut $type_name));
                             ptr
                         },
                         _ =>
                             return Err(Error::TypeMismatch),
                     };
-                    unsafe { value.populate_into(self, ptr as *mut $t) }
+                    unsafe { value.populate_into(self, ptr as *mut $type_name) }
                 }
 
-                fn $f2(&mut self, name: &str) -> Result<*const MaybeUninit<$t>, Error> {
+                fn $placeholder_fn(&mut self, name: &str) -> Result<*const MaybeUninit<$type_name>, Error> {
                     Ok(match self.nodes.get::<str>(name) {
                         None => {
-                            let ptr: *mut MaybeUninit<$t> = self.bump.alloc(MaybeUninit::uninit());
+                            let ptr: *mut MaybeUninit<$type_name> = self.bump.alloc(MaybeUninit::uninit());
                             let name = self.bump.alloc_str(name);
-                            self.nodes.insert(HydratingName(name), Node::$t(Either::Left(ptr)));
+                            self.nodes.insert(HydratingName(name), Node::$type_name(Either::Left(ptr)));
                             ptr
                         },
-                        Some(&Node::$t(Either::Left(ptr))) => ptr,
-                        Some(&Node::$t(Either::Right(ptr))) => ptr as _,
+                        Some(&Node::$type_name(Either::Left(ptr))) => ptr,
+                        Some(&Node::$type_name(Either::Right(ptr))) => ptr as _,
                         _ =>
                             return Err(Error::TypeMismatch),
                     })
@@ -145,26 +145,26 @@ macro_rules! nodefn {
             )*
 
             pub fn finish(self) -> Result<Yoke<Ast<'static>, ErasedArcCart>, Error> {
-                $( let mut $var = 0; )*
+                $( let mut $field = 0; )*
                 for node in self.nodes.values() {
                     match node {
-                        $( Node::$t(Either::Left(_)) => return Err(Error::Incomplete), )*
-                        $( Node::$t(Either::Right(_)) => $var += 1, )*
+                        $( Node::$type_name(Either::Left(_)) => return Err(Error::Incomplete), )*
+                        $( Node::$type_name(Either::Right(_)) => $field += 1, )*
                     }
                 }
 
                 fn null_ptr<I, R>(_: I) -> *const R { ptr::null() }
                 $(
-                    let $var = self.bump.alloc_slice_fill_with($var, null_ptr);
-                    let mut $var: (*const [*const $t], _) = ($var, $var);
+                    let $field = self.bump.alloc_slice_fill_with($field, null_ptr);
+                    let mut $field: (*const [*const $type_name], _) = ($field, $field);
                 )*
 
                 for node in self.nodes.values() {
                     match node {
                         $(
-                            &Node::$t(Either::Right(ptr)) => {
-                                let (slot, slice) = $var.1.split_first_mut().unwrap();
-                                $var.1 = slice;
+                            &Node::$type_name(Either::Right(ptr)) => {
+                                let (slot, slice) = $field.1.split_first_mut().unwrap();
+                                $field.1 = slice;
                                 *slot = ptr
                             },
                         )*
@@ -172,17 +172,17 @@ macro_rules! nodefn {
                     }
                 }
 
-                $( let $var = $var.0; )*
+                $( let $field = $field.0; )*
 
                 let nodes = self.nodes;
                 Ok(Yoke::attach_to_cart(Arc::new(Mutex::new(self.bump)), |_| {
                     Ast {
-                        $( $var: unsafe { &*($var as *const [&$t]) }, )*
+                        $( $field: unsafe { &*($field as *const [&$type_name]) }, )*
                         nodes: nodes.into_iter().map(
                             |(k, v)| (
                                 unsafe { &*k.0 },
                                 match v {
-                                    $( Node::$t(Either::Right(ptr)) => Node::$t(unsafe { &*ptr }), )*
+                                    $( Node::$type_name(Either::Right(ptr)) => Node::$type_name(unsafe { &*ptr }), )*
                                     _ => unreachable!(),
                                 },
                             )
@@ -194,7 +194,7 @@ macro_rules! nodefn {
     };
 }
 
-nodefn![
+hydration_helper![
     [add_package, placeholder_package, packages](PackageData => Package),
     [add_file, placeholder_file, files](FileData => File),
     [add_message, placeholder_message, messages](MessageData => Message),
