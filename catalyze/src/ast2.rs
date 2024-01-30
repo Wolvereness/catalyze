@@ -52,9 +52,12 @@ macro_rules! populate {
         (addr_of_mut!((&mut *$ptr).$field) as *mut *const str)
             .write($hydrator.bump.alloc_str($this.$field));
     };
-    ($hydrator:ident, (*$ptr:ident = $this:ident)[$(
+    ($hydrator:ident, (*$ptr:ident: $target:tt = $this:ident)[$(
         $field:tt: $type_name:tt,
     )*]) => {
+        let $target {
+            $($field: _,)*
+        };
         use std::mem::MaybeUninit;
         use std::ptr::addr_of_mut;
         $(

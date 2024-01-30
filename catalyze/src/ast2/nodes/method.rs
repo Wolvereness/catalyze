@@ -9,7 +9,7 @@ pub struct MethodData<'a> {
 
 impl MethodData<'_> {
     pub unsafe fn populate_into(&self, ast: &mut super::super::AstHydration, ptr: *mut Method) -> Result<(), super::super::Error> {
-        populate!(ast, (*ptr = self)[
+        populate!(ast, (*ptr: Method = self)[
             input: Message,
             output: Message,
             name: str,
