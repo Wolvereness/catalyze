@@ -52,6 +52,10 @@ macro_rules! populate {
         (addr_of_mut!((&mut *$ptr).$field) as *mut *const str)
             .write($hydrator.bump.alloc_str($this.$field));
     };
+    ($hydrator:ident, move: (*$ptr:ident = $this:ident).$field:tt) => {
+        addr_of_mut!((&mut *$ptr).$field)
+            .write($this.$field);
+    };
     ($hydrator:ident, (*$ptr:ident: $target:tt = $this:ident)[$(
         $field:tt: $type_name:tt,
     )*]) => {

@@ -5,6 +5,7 @@ pub struct MethodData<'a> {
     pub output: &'a str,
     pub file: &'a str,
     pub name: &'a str,
+    pub deprecated: bool,
 }
 
 impl MethodData<'_> {
@@ -14,6 +15,7 @@ impl MethodData<'_> {
             output: Message,
             name: str,
             file: File,
+            deprecated: move,
         ]);
         Ok(())
     }
@@ -25,4 +27,5 @@ pub struct Method<'a> {
     pub output: &'a Message,
     pub file: &'a File,
     pub name: &'a str,
+    pub deprecated: bool,
 }
